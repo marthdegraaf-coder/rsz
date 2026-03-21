@@ -24,6 +24,12 @@ _EVENT_CATEGORY_KW = {
     'training', 'trainingen', 'seminar', 'webinar', 'opleiding',
 }
 
+# Product names (lowercase, partial match) that are always treated as events
+_EVENT_NAME_KW = {
+    'driften', 'ijsdriften', 'pitlane', 'vrij rijden',
+    'racecursus', 'trainingsdagen', 'race & tactics',
+}
+
 _DATE_KEYS = {'datum', 'date', 'startdatum', 'start datum', 'event datum', 'start_date', 'event_date'}
 _END_DATE_KEYS = {'einddatum', 'end date', 'end_date', 'einde', 'einddatum'}
 _LOCATION_KEYS = {'locatie', 'location', 'adres', 'venue', 'plaats'}
@@ -68,6 +74,9 @@ def _is_event_product(product: dict) -> bool:
         for field in (cat.get('name', ''), cat.get('slug', '')):
             if any(kw in field.lower() for kw in _EVENT_CATEGORY_KW):
                 return True
+    name = product.get('name', '').lower()
+    if any(kw in name for kw in _EVENT_NAME_KW):
+        return True
     return False
 
 router = APIRouter(prefix="/woocommerce", tags=["woocommerce"])
