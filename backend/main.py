@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from database import engine, Base
 import models  # noqa: F401 - ensures models are registered
-from routers import contacts, companies, events, tags, woocommerce, afas
+from routers import contacts, companies, events, tags, woocommerce, afas, todos
 
 Base.metadata.create_all(bind=engine)
 
@@ -13,6 +13,8 @@ with engine.connect() as _conn:
         "ALTER TABLE events ADD COLUMN woo_product_id INTEGER",
         "ALTER TABLE contacts ADD COLUMN afas_id VARCHAR(50)",
         "ALTER TABLE companies ADD COLUMN afas_id VARCHAR(50)",
+        "CREATE TABLE IF NOT EXISTS todos (id INTEGER PRIMARY KEY, contact_id INTEGER NOT NULL, activity_id INTEGER, title VARCHAR(255) NOT NULL, description TEXT, due_date DATETIME, done BOOLEAN DEFAULT 0, clickup_task_id VARCHAR(100), created_at DATETIME, updated_at DATETIME)",
+        "CREATE TABLE IF NOT EXISTS clickup_config (id INTEGER PRIMARY KEY, api_token VARCHAR(255) NOT NULL, list_id VARCHAR(100) NOT NULL)",
     ]:
         try:
             _conn.execute(text(_stmt))
@@ -36,6 +38,7 @@ app.include_router(events.router, prefix="/api")
 app.include_router(tags.router, prefix="/api")
 app.include_router(woocommerce.router, prefix="/api")
 app.include_router(afas.router, prefix="/api")
+app.include_router(todos.router, prefix="/api")
 
 
 @app.get("/api/stats")

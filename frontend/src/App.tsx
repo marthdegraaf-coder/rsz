@@ -12,6 +12,7 @@ import Tags from './pages/Tags'
 import WooCommercePage from './pages/WooCommerce'
 import Products from './pages/Products'
 import AfasPage from './pages/Afas'
+import ClickUpPage from './pages/ClickUp'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -36,6 +37,7 @@ export default function App() {
             <Route path="products" element={<Products />} />
             <Route path="woocommerce" element={<WooCommercePage />} />
             <Route path="afas" element={<AfasPage />} />
+            <Route path="clickup" element={<ClickUpPage />} />
           </Route>
         </Routes>
       </BrowserRouter>

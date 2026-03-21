@@ -82,6 +82,19 @@ export interface Event {
   tags: Tag[]
 }
 
+export interface Todo {
+  id: number
+  contact_id: number
+  activity_id?: number
+  title: string
+  description?: string
+  due_date?: string
+  done: boolean
+  clickup_task_id?: string
+  created_at: string
+  updated_at: string
+}
+
 export interface Stats {
   total_contacts: number
   total_companies: number

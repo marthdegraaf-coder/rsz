@@ -6,6 +6,7 @@ import type {
   Tag,
   Activity,
   Attendee,
+  Todo,
   Stats,
   ContactStatus,
   EventStatus,
@@ -79,6 +80,26 @@ export const updateAttendee = (eventId: number, attendeeId: number, data: { rsvp
 
 export const removeAttendee = (eventId: number, attendeeId: number) =>
   api.delete(`/events/${eventId}/attendees/${attendeeId}`)
+
+// Todos
+export const fetchTodos = (contactId: number) =>
+  api.get<Todo[]>(`/contacts/${contactId}/todos`).then((r) => r.data)
+
+export const createTodo = (contactId: number, data: { title: string; description?: string; due_date?: string; activity_id?: number }) =>
+  api.post<Todo>(`/contacts/${contactId}/todos`, data).then((r) => r.data)
+
+export const updateTodo = (contactId: number, todoId: number, data: { title?: string; description?: string; due_date?: string; done?: boolean }) =>
+  api.put<Todo>(`/contacts/${contactId}/todos/${todoId}`, data).then((r) => r.data)
+
+export const deleteTodo = (contactId: number, todoId: number) =>
+  api.delete(`/contacts/${contactId}/todos/${todoId}`)
+
+// ClickUp config
+export const fetchClickUpConfig = () =>
+  api.get('/clickup/config').then((r) => r.data)
+
+export const saveClickUpConfig = (data: { api_token: string; list_id: string }) =>
+  api.post('/clickup/config', data).then((r) => r.data)
 
 // Tags
 export const fetchTags = () =>

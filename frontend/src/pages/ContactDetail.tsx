@@ -1,13 +1,13 @@
 import { useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Phone, Mail, Building2, Edit2, Save, X, Plus, ShoppingCart } from 'lucide-react'
+import { ArrowLeft, Phone, Mail, Building2, Edit2, Save, X, Plus, ShoppingCart, CheckSquare, Square, Trash2, ExternalLink } from 'lucide-react'
 import axios from 'axios'
 import {
   fetchContact, updateContact, fetchContactActivities,
-  addActivity, fetchCompanies,
+  addActivity, fetchCompanies, fetchTodos, createTodo, updateTodo, deleteTodo,
 } from '../api/client'
-import type { Contact, ContactStatus, ActivityType } from '../api/types'
+import type { Contact, ContactStatus, ActivityType, Todo } from '../api/types'
 import StatusBadge from '../components/StatusBadge'
 import { Input, Select, Textarea } from '../components/FormField'
 import Modal from '../components/Modal'
@@ -48,6 +48,33 @@ function AddActivityModal({ contactId, onClose }: { contactId: number; onClose: 
   )
 }
 
+function AddTodoModal({ contactId, onClose }: { contactId: number; onClose: () => void }) {
+  const qc = useQueryClient()
+  const [form, setForm] = useState({ title: '', description: '', due_date: '' })
+  const mutation = useMutation({
+    mutationFn: () => createTodo(contactId, {
+      title: form.title,
+      description: form.description || undefined,
+      due_date: form.due_date ? new Date(form.due_date).toISOString() : undefined,
+    }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['todos', contactId] }); onClose() },
+  })
+
+  return (
+    <form onSubmit={(e) => { e.preventDefault(); mutation.mutate() }} className="space-y-4">
+      <Input label="Titel *" required value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} />
+      <Textarea label="Omschrijving / verslag" value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
+      <Input label="Deadline" type="datetime-local" value={form.due_date} onChange={(e) => setForm((f) => ({ ...f, due_date: e.target.value }))} />
+      <div className="flex justify-end gap-2 pt-2">
+        <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-600">Annuleren</button>
+        <button type="submit" disabled={mutation.isPending || !form.title} className="px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 disabled:opacity-50">
+          Opslaan{mutation.isPending ? '…' : ''}
+        </button>
+      </div>
+    </form>
+  )
+}
+
 export default function ContactDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -69,8 +96,14 @@ export default function ContactDetail() {
     queryFn: () => fetchCompanies(),
   })
 
+  const { data: todos = [] } = useQuery({
+    queryKey: ['todos', contactId],
+    queryFn: () => fetchTodos(contactId),
+  })
+
   const [editing, setEditing] = useState(false)
   const [showAddActivity, setShowAddActivity] = useState(false)
+  const [showAddTodo, setShowAddTodo] = useState(false)
   const [editForm, setEditForm] = useState<Partial<Contact>>({})
 
   const updateMutation = useMutation({
@@ -80,6 +113,16 @@ export default function ContactDetail() {
       qc.invalidateQueries({ queryKey: ['contacts'] })
       setEditing(false)
     },
+  })
+
+  const toggleTodo = useMutation({
+    mutationFn: ({ todo }: { todo: Todo }) => updateTodo(contactId, todo.id, { done: !todo.done }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['todos', contactId] }),
+  })
+
+  const removeTodo = useMutation({
+    mutationFn: ({ todoId }: { todoId: number }) => deleteTodo(contactId, todoId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['todos', contactId] }),
   })
 
   if (isLoading) return <div className="p-6 text-slate-400">Laden...</div>
@@ -212,6 +255,64 @@ export default function ContactDetail() {
         </div>
       </div>
 
+      {/* Todos */}
+      <div className="bg-white rounded-xl border border-slate-200">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+          <h2 className="font-semibold text-slate-900 flex items-center gap-2">
+            <CheckSquare size={17} />
+            Opvolging
+            {todos.filter((t) => !t.done).length > 0 && (
+              <span className="ml-1 bg-indigo-100 text-indigo-700 text-xs font-semibold px-2 py-0.5 rounded-full">
+                {todos.filter((t) => !t.done).length} open
+              </span>
+            )}
+          </h2>
+          <button onClick={() => setShowAddTodo(true)} className="flex items-center gap-1 text-sm text-indigo-600 hover:text-indigo-700">
+            <Plus size={15} /> Toevoegen
+          </button>
+        </div>
+        {todos.length === 0 ? (
+          <p className="text-sm text-slate-400 text-center py-8">Geen openstaande acties</p>
+        ) : (
+          <ul className="divide-y divide-slate-100">
+            {todos.map((todo) => (
+              <li key={todo.id} className={`px-5 py-3 flex gap-3 items-start ${todo.done ? 'opacity-50' : ''}`}>
+                <button
+                  onClick={() => toggleTodo.mutate({ todo })}
+                  className="mt-0.5 text-slate-400 hover:text-indigo-600 transition-colors flex-shrink-0"
+                >
+                  {todo.done ? <CheckSquare size={18} className="text-green-500" /> : <Square size={18} />}
+                </button>
+                <div className="flex-1 min-w-0">
+                  <p className={`text-sm font-medium text-slate-900 ${todo.done ? 'line-through' : ''}`}>{todo.title}</p>
+                  {todo.description && (
+                    <p className="text-sm text-slate-500 mt-0.5 whitespace-pre-wrap">{todo.description}</p>
+                  )}
+                  <div className="flex items-center gap-3 mt-1">
+                    {todo.due_date && (
+                      <span className={`text-xs ${!todo.done && new Date(todo.due_date) < new Date() ? 'text-red-500 font-medium' : 'text-slate-400'}`}>
+                        Deadline: {new Date(todo.due_date).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      </span>
+                    )}
+                    {todo.clickup_task_id && (
+                      <span className="text-xs text-purple-500 flex items-center gap-1">
+                        <ExternalLink size={11} /> ClickUp
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <button
+                  onClick={() => { if (confirm('Actie verwijderen?')) removeTodo.mutate({ todoId: todo.id }) }}
+                  className="text-slate-300 hover:text-red-500 transition-colors flex-shrink-0"
+                >
+                  <Trash2 size={15} />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
       {/* Activities */}
       <div className="bg-white rounded-xl border border-slate-200">
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
@@ -246,6 +347,12 @@ export default function ContactDetail() {
       {showAddActivity && (
         <Modal title="Activiteit toevoegen" onClose={() => setShowAddActivity(false)}>
           <AddActivityModal contactId={contactId} onClose={() => setShowAddActivity(false)} />
+        </Modal>
+      )}
+
+      {showAddTodo && (
+        <Modal title="Opvolgactie toevoegen" onClose={() => setShowAddTodo(false)}>
+          <AddTodoModal contactId={contactId} onClose={() => setShowAddTodo(false)} />
         </Modal>
       )}
     </div>

@@ -1,5 +1,5 @@
 import { NavLink, Outlet } from 'react-router-dom'
-import { Users, Building2, Calendar, LayoutDashboard, Tag, Package, Settings } from 'lucide-react'
+import { Users, Building2, Calendar, LayoutDashboard, Tag, Package, Settings, CheckSquare } from 'lucide-react'
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -10,6 +10,7 @@ const navItems = [
   { to: '/tags', icon: Tag, label: 'Tags' },
   { to: '/woocommerce', icon: Settings, label: 'WooCommerce' },
   { to: '/afas', icon: Settings, label: 'AFAS' },
+  { to: '/clickup', icon: CheckSquare, label: 'ClickUp' },
 ]
 
 export default function Layout() {

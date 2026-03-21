@@ -108,6 +108,35 @@ class Activity(ActivityBase):
     model_config = {"from_attributes": True}
 
 
+# Todo schemas
+class TodoCreate(BaseModel):
+    title: str
+    description: Optional[str] = None
+    due_date: Optional[datetime] = None
+    activity_id: Optional[int] = None
+
+
+class TodoUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    due_date: Optional[datetime] = None
+    done: Optional[bool] = None
+
+
+class Todo(BaseModel):
+    id: int
+    contact_id: int
+    activity_id: Optional[int] = None
+    title: str
+    description: Optional[str] = None
+    due_date: Optional[datetime] = None
+    done: bool
+    clickup_task_id: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+    model_config = {"from_attributes": True}
+
+
 # Attendee schemas
 class AttendeeBase(BaseModel):
     contact_id: int

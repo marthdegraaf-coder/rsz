@@ -80,6 +80,7 @@ class Contact(Base):
     attendances = relationship("Attendee", back_populates="contact", cascade="all, delete-orphan")
     tags = relationship("Tag", secondary=contact_tags, back_populates="contacts")
     orders = relationship("Order", back_populates="contact")
+    todos = relationship("Todo", back_populates="contact", cascade="all, delete-orphan")
 
     @property
     def full_name(self):
@@ -109,6 +110,33 @@ class Activity(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     contact = relationship("Contact", back_populates="activities")
+    todos = relationship("Todo", back_populates="activity")
+
+
+class Todo(Base):
+    __tablename__ = "todos"
+
+    id = Column(Integer, primary_key=True, index=True)
+    contact_id = Column(Integer, ForeignKey("contacts.id"), nullable=False)
+    activity_id = Column(Integer, ForeignKey("activities.id"), nullable=True)
+    title = Column(String(255), nullable=False)
+    description = Column(Text)
+    due_date = Column(DateTime, nullable=True)
+    done = Column(Boolean, default=False)
+    clickup_task_id = Column(String(100), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    contact = relationship("Contact", back_populates="todos")
+    activity = relationship("Activity", back_populates="todos")
+
+
+class ClickUpConfig(Base):
+    __tablename__ = "clickup_config"
+
+    id = Column(Integer, primary_key=True)
+    api_token = Column(String(255), nullable=False)
+    list_id = Column(String(100), nullable=False)
 
 
 class Event(Base):
