@@ -396,6 +396,37 @@ def sync(db: Session = Depends(get_db)):
     )
 
 
+@router.get("/debug")
+def debug(db: Session = Depends(get_db)):
+    """Show raw WooCommerce API response for debugging."""
+    config = get_woo_config(db)
+    base = config.store_url.rstrip("/")
+    if base.startswith("http://"):
+        base = "https://" + base[7:]
+
+    results = {}
+    for endpoint in ("products", "customers", "orders"):
+        try:
+            p = {
+                "consumer_key": config.consumer_key,
+                "consumer_secret": config.consumer_secret,
+                "per_page": 2,
+                "page": 1,
+                **({"status": "publish"} if endpoint == "products" else {}),
+            }
+            resp = http.get(f"{base}/wp-json/wc/v3/{endpoint}", params=p, timeout=15, allow_redirects=True)
+            results[endpoint] = {
+                "url": resp.url,
+                "status_code": resp.status_code,
+                "content_length": len(resp.text),
+                "content_type": resp.headers.get("content-type", ""),
+                "body_preview": resp.text[:500],
+            }
+        except Exception as e:
+            results[endpoint] = {"error": str(e)}
+    return results
+
+
 @router.get("/orders")
 def list_orders(
     contact_id: Optional[int] = None,
