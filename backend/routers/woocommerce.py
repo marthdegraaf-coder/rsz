@@ -22,6 +22,11 @@ _EVENT_CATEGORY_KW = {
     'evenement', 'evenementen', 'event', 'events',
     'workshop', 'workshops', 'cursus', 'cursussen',
     'training', 'trainingen', 'seminar', 'webinar', 'opleiding',
+    # RSZ-specifieke rijschool categorieën
+    'driften', 'ijsdriften', 'pitlane', 'vrij rijden', 'vrij-rijden',
+    'racecursus', 'racecursus-upgrade', 'trainingsdagen',
+    'race-tactics', 'race-&-tactics',
+    'open pitlane', 'open-pitlane',
 }
 
 # Product names (lowercase, partial match) that are always treated as events
@@ -51,6 +56,27 @@ def _parse_date(s: str) -> Optional[datetime]:
                                 int(m.group(4) or 10), int(m.group(5) or 0))
             except ValueError:
                 pass
+    return None
+
+
+def _extract_date_from_name(name: str) -> Optional[datetime]:
+    """Try to extract a date from a product name like 'Driften 15 april 2026'."""
+    # Search for pattern: day + Dutch month + year anywhere in the string
+    m = re.search(r'(\d{1,2})\s+(\w+)\s+(\d{4})', name.lower())
+    if m:
+        month = _DUTCH_MONTHS.get(m.group(2))
+        if month:
+            try:
+                return datetime(int(m.group(3)), month, int(m.group(1)), 10, 0)
+            except ValueError:
+                pass
+    # Try dd-mm-yyyy or dd/mm/yyyy
+    m = re.search(r'(\d{2})[/-](\d{2})[/-](\d{4})', name)
+    if m:
+        try:
+            return datetime(int(m.group(3)), int(m.group(2)), int(m.group(1)), 10, 0)
+        except ValueError:
+            pass
     return None
 
 
@@ -262,17 +288,23 @@ def sync(db: Session = Depends(get_db)):
         end_date_str = _attr_value(wp, _END_DATE_KEYS)
         location = _attr_value(wp, _LOCATION_KEYS) or ""
 
-        start_at = _parse_date(date_str) if date_str else None
+        # 1) Try attribute/meta date, 2) fall back to product name, 3) use placeholder
+        start_at = (_parse_date(date_str) if date_str else None)
         if not start_at:
-            continue  # No usable date — skip this product as event
-
-        end_at = _parse_date(end_date_str) if end_date_str else start_at + timedelta(hours=8)
+            start_at = _extract_date_from_name(wp.get("name", ""))
 
         woo_status = wp.get("status", "publish")
-        event_status = (
-            models.EventStatus.published if woo_status == "publish"
-            else models.EventStatus.draft
-        )
+        if start_at:
+            event_status = (
+                models.EventStatus.published if woo_status == "publish"
+                else models.EventStatus.draft
+            )
+        else:
+            # No date found — import as draft with placeholder so it's visible
+            start_at = datetime(2099, 1, 1, 10, 0)
+            event_status = models.EventStatus.draft
+
+        end_at = _parse_date(end_date_str) if end_date_str else start_at + timedelta(hours=8)
 
         event = db.query(models.Event).filter(models.Event.woo_product_id == wp["id"]).first()
         event_data = dict(
