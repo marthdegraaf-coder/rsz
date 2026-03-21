@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.pyc
+*.db
+*.db-shm
+*.db-wal
+backend/.venv/
+
+# Node
+frontend/node_modules/
+frontend/dist/
+
+# Editor
+.DS_Store
+*.swp
