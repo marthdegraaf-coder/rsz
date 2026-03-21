@@ -98,7 +98,7 @@ def _attr_value(product: dict, keys: set) -> Optional[str]:
 def _is_event_product(product: dict) -> bool:
     for cat in product.get('categories', []):
         for field in (cat.get('name', ''), cat.get('slug', '')):
-            if any(kw in field.lower() for kw in _EVENT_CATEGORY_KW):
+            if field.lower().strip() in _EVENT_CATEGORY_KW:
                 return True
     name = product.get('name', '').lower()
     if any(kw in name for kw in _EVENT_NAME_KW):
