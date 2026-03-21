@@ -14,7 +14,7 @@ def list_events(
     q: Optional[str] = Query(None),
     status: Optional[models.EventStatus] = None,
     skip: int = 0,
-    limit: int = 100,
+    limit: int = 10000,
     db: Session = Depends(get_db),
 ):
     query = db.query(models.Event)

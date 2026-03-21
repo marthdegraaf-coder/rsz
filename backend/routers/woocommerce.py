@@ -546,7 +546,7 @@ def list_orders(
 def list_products(
     q: Optional[str] = None,
     skip: int = 0,
-    limit: int = 100,
+    limit: int = 10000,
     db: Session = Depends(get_db),
 ):
     query = db.query(models.Product)
