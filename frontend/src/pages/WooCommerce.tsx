@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import axios from 'axios'
-import { Settings, RefreshCw, CheckCircle, Package, ShoppingCart, Users } from 'lucide-react'
+import { Settings, RefreshCw, CheckCircle, Package, ShoppingCart, Users, Calendar } from 'lucide-react'
 import { Input } from '../components/FormField'
 
 interface WooConfig {
@@ -14,6 +14,7 @@ interface SyncResult {
   contacts_updated: number
   orders_synced: number
   products_synced: number
+  events_synced: number
 }
 
 const api = axios.create({ baseURL: '/api' })
@@ -49,6 +50,7 @@ export default function WooCommercePage() {
       qc.invalidateQueries({ queryKey: ['stats'] })
       qc.invalidateQueries({ queryKey: ['woo-products'] })
       qc.invalidateQueries({ queryKey: ['woo-orders'] })
+      qc.invalidateQueries({ queryKey: ['events'] })
     },
   })
 
@@ -162,6 +164,13 @@ export default function WooCommercePage() {
                   <p className="text-xs text-violet-600">Producten gesynchroniseerd</p>
                 </div>
               </div>
+              <div className="bg-emerald-50 rounded-lg p-4 flex items-center gap-3 col-span-2">
+                <Calendar size={20} className="text-emerald-600" />
+                <div>
+                  <p className="text-lg font-bold text-emerald-700">{syncResult.events_synced}</p>
+                  <p className="text-xs text-emerald-600">Evenementen gesynchroniseerd vanuit producten</p>
+                </div>
+              </div>
             </div>
           )}
         </div>
@@ -174,6 +183,7 @@ export default function WooCommercePage() {
           <li className="flex items-center gap-2"><Users size={14} className="text-indigo-500" /> <strong>Klanten</strong> → worden automatisch als contacten toegevoegd (gematcht op e-mail)</li>
           <li className="flex items-center gap-2"><ShoppingCart size={14} className="text-emerald-500" /> <strong>Bestellingen</strong> → zichtbaar op de contactpagina met alle bestelregels</li>
           <li className="flex items-center gap-2"><Package size={14} className="text-violet-500" /> <strong>Producten</strong> → naam, SKU, prijs, voorraad en categorieën</li>
+          <li className="flex items-center gap-2"><Calendar size={14} className="text-emerald-500" /> <strong>Evenementen</strong> → producten in een evenementen-categorie worden als evenement aangemaakt (datum en locatie uit product-attributen)</li>
         </ul>
       </div>
     </div>

@@ -1,10 +1,22 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 from database import engine, Base
 import models  # noqa: F401 - ensures models are registered
 from routers import contacts, companies, events, tags, woocommerce
 
 Base.metadata.create_all(bind=engine)
+
+# Migrations: add columns that were added after initial DB creation
+with engine.connect() as _conn:
+    for _stmt in [
+        "ALTER TABLE events ADD COLUMN woo_product_id INTEGER",
+    ]:
+        try:
+            _conn.execute(text(_stmt))
+            _conn.commit()
+        except Exception:
+            pass  # Column already exists
 
 app = FastAPI(title="CRM & Event Management", version="1.0.0")
 

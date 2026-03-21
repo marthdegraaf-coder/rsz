@@ -120,6 +120,7 @@ class Event(Base):
     end_at = Column(DateTime, nullable=False)
     max_attendees = Column(Integer)
     status = Column(Enum(EventStatus), default=EventStatus.draft)
+    woo_product_id = Column(Integer, nullable=True, unique=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

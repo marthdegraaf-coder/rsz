@@ -1,5 +1,6 @@
 import json
-from datetime import datetime
+import re
+from datetime import datetime, timedelta
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -8,6 +9,66 @@ import requests as http
 
 import models
 from database import get_db
+
+# --- Event-product helpers ---
+
+_DUTCH_MONTHS = {
+    'januari': 1, 'februari': 2, 'maart': 3, 'april': 4,
+    'mei': 5, 'juni': 6, 'juli': 7, 'augustus': 8,
+    'september': 9, 'oktober': 10, 'november': 11, 'december': 12,
+}
+
+_EVENT_CATEGORY_KW = {
+    'evenement', 'evenementen', 'event', 'events',
+    'workshop', 'workshops', 'cursus', 'cursussen',
+    'training', 'trainingen', 'seminar', 'webinar', 'opleiding',
+}
+
+_DATE_KEYS = {'datum', 'date', 'startdatum', 'start datum', 'event datum', 'start_date', 'event_date'}
+_END_DATE_KEYS = {'einddatum', 'end date', 'end_date', 'einde', 'einddatum'}
+_LOCATION_KEYS = {'locatie', 'location', 'adres', 'venue', 'plaats'}
+
+
+def _parse_date(s: str) -> Optional[datetime]:
+    s = s.strip()
+    for fmt in ('%Y-%m-%d %H:%M:%S', '%Y-%m-%dT%H:%M:%S', '%Y-%m-%d', '%d-%m-%Y', '%d/%m/%Y'):
+        try:
+            return datetime.strptime(s, fmt)
+        except ValueError:
+            pass
+    m = re.match(r'(\d{1,2})\s+(\w+)\s+(\d{4})(?:\s+(\d{1,2}):(\d{2}))?', s.lower())
+    if m:
+        month = _DUTCH_MONTHS.get(m.group(2))
+        if month:
+            try:
+                return datetime(int(m.group(3)), month, int(m.group(1)),
+                                int(m.group(4) or 10), int(m.group(5) or 0))
+            except ValueError:
+                pass
+    return None
+
+
+def _attr_value(product: dict, keys: set) -> Optional[str]:
+    for attr in product.get('attributes', []):
+        if attr.get('name', '').lower().strip() in keys:
+            opts = attr.get('options', [])
+            if opts:
+                return opts[0]
+    for meta in product.get('meta_data', []):
+        key = meta.get('key', '').lower().lstrip('_')
+        if key in keys:
+            val = meta.get('value')
+            if val:
+                return str(val)
+    return None
+
+
+def _is_event_product(product: dict) -> bool:
+    for cat in product.get('categories', []):
+        for field in (cat.get('name', ''), cat.get('slug', '')):
+            if any(kw in field.lower() for kw in _EVENT_CATEGORY_KW):
+                return True
+    return False
 
 router = APIRouter(prefix="/woocommerce", tags=["woocommerce"])
 
@@ -29,6 +90,7 @@ class SyncResult(BaseModel):
     contacts_updated: int
     orders_synced: int
     products_synced: int
+    events_synced: int
 
 
 def get_woo_config(db: Session) -> models.WooConfig:
@@ -132,6 +194,7 @@ def sync(db: Session = Depends(get_db)):
     contacts_updated = 0
     orders_synced = 0
     products_synced = 0
+    events_synced = 0
 
     # --- Sync products ---
     woo_products = woo_get(config, "products", {"status": "publish"})
@@ -170,6 +233,48 @@ def sync(db: Session = Depends(get_db)):
             product = models.Product(**data)
             db.add(product)
         products_synced += 1
+    db.commit()
+
+    # --- Sync events from event-category products ---
+    for wp in woo_products:
+        if not _is_event_product(wp):
+            continue
+
+        date_str = _attr_value(wp, _DATE_KEYS)
+        end_date_str = _attr_value(wp, _END_DATE_KEYS)
+        location = _attr_value(wp, _LOCATION_KEYS) or ""
+
+        start_at = _parse_date(date_str) if date_str else None
+        if not start_at:
+            continue  # No usable date — skip this product as event
+
+        end_at = _parse_date(end_date_str) if end_date_str else start_at + timedelta(hours=8)
+
+        woo_status = wp.get("status", "publish")
+        event_status = (
+            models.EventStatus.published if woo_status == "publish"
+            else models.EventStatus.draft
+        )
+
+        event = db.query(models.Event).filter(models.Event.woo_product_id == wp["id"]).first()
+        event_data = dict(
+            title=wp.get("name", ""),
+            description=wp.get("short_description") or wp.get("description") or "",
+            location=location,
+            start_at=start_at,
+            end_at=end_at,
+            max_attendees=wp.get("stock_quantity"),
+            status=event_status,
+            woo_product_id=wp["id"],
+        )
+        if event:
+            for k, v in event_data.items():
+                setattr(event, k, v)
+        else:
+            event = models.Event(**event_data)
+            db.add(event)
+        events_synced += 1
+
     db.commit()
 
     # Build product lookup
@@ -287,6 +392,7 @@ def sync(db: Session = Depends(get_db)):
         contacts_updated=contacts_updated,
         orders_synced=orders_synced,
         products_synced=products_synced,
+        events_synced=events_synced,
     )
 
 
