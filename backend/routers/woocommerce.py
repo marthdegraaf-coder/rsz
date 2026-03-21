@@ -292,9 +292,13 @@ def sync(db: Session = Depends(get_db)):
     db.commit()
 
     # --- Sync events from event-category products ---
+    valid_event_woo_ids: set[int] = set()
+
     for wp in woo_products:
         if not _is_event_product(wp):
             continue
+
+        valid_event_woo_ids.add(wp["id"])
 
         date_str = _attr_value(wp, _DATE_KEYS)
         end_date_str = _attr_value(wp, _END_DATE_KEYS)
@@ -336,6 +340,19 @@ def sync(db: Session = Depends(get_db)):
             event = models.Event(**event_data)
             db.add(event)
         events_synced += 1
+
+    # Remove WooCommerce-linked events whose product is no longer classified as an event
+    stale_events = (
+        db.query(models.Event)
+        .filter(
+            models.Event.woo_product_id.isnot(None),
+            models.Event.woo_product_id.not_in(valid_event_woo_ids) if valid_event_woo_ids
+            else models.Event.woo_product_id.isnot(None),
+        )
+        .all()
+    )
+    for stale in stale_events:
+        db.delete(stale)
 
     db.commit()
 
