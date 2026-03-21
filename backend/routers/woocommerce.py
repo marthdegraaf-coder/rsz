@@ -100,7 +100,7 @@ def get_woo_config(db: Session) -> models.WooConfig:
     return config
 
 
-def woo_get(config: models.WooConfig, endpoint: str, params: dict = None) -> list:
+def woo_get(config: models.WooConfig, endpoint: str, params: dict = None, per_page: int = 100) -> list:
     """Fetch all pages from a WooCommerce endpoint."""
     # Ensure HTTPS so Basic auth headers are not stripped on redirect
     base = config.store_url.rstrip("/")
@@ -114,14 +114,14 @@ def woo_get(config: models.WooConfig, endpoint: str, params: dict = None) -> lis
         p = {
             "consumer_key": config.consumer_key,
             "consumer_secret": config.consumer_secret,
-            "per_page": 100,
+            "per_page": per_page,
             "page": page,
             **(params or {}),
         }
         resp = http.get(
             f"{base}/wp-json/wc/v3/{endpoint}",
             params=p,
-            timeout=30,
+            timeout=60,
             allow_redirects=True,
         )
         if resp.status_code == 204 or not resp.text.strip():
@@ -133,12 +133,20 @@ def woo_get(config: models.WooConfig, endpoint: str, params: dict = None) -> lis
             )
         try:
             data = resp.json()
-        except Exception:
-            break
+        except Exception as e:
+            raise HTTPException(
+                status_code=502,
+                detail=f"WooCommerce API antwoord is geen geldige JSON voor '{endpoint}' pagina {page}: {e}",
+            )
+        if not isinstance(data, list):
+            raise HTTPException(
+                status_code=502,
+                detail=f"WooCommerce API onverwacht antwoord voor '{endpoint}': {str(data)[:300]}",
+            )
         if not data:
             break
         results.extend(data)
-        if len(data) < 100:
+        if len(data) < per_page:
             break
         page += 1
     return results
@@ -197,7 +205,8 @@ def sync(db: Session = Depends(get_db)):
     events_synced = 0
 
     # --- Sync products ---
-    woo_products = woo_get(config, "products", {"status": "publish"})
+    # Use small per_page (10) because composite products have large payloads
+    woo_products = woo_get(config, "products", {"status": "publish"}, per_page=10)
     for wp in woo_products:
         product = db.query(models.Product).filter(models.Product.woo_id == wp["id"]).first()
         categories = json.dumps([c["name"] for c in wp.get("categories", [])])
