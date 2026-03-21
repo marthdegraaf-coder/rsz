@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Enum, Table
+from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Enum, Table, Float, Boolean
 from sqlalchemy.orm import relationship
 from database import Base
 import enum
@@ -77,6 +77,7 @@ class Contact(Base):
     activities = relationship("Activity", back_populates="contact", cascade="all, delete-orphan")
     attendances = relationship("Attendee", back_populates="contact", cascade="all, delete-orphan")
     tags = relationship("Tag", secondary=contact_tags, back_populates="contacts")
+    orders = relationship("Order", back_populates="contact")
 
     @property
     def full_name(self):
@@ -138,3 +139,81 @@ class Attendee(Base):
 
     event = relationship("Event", back_populates="attendees")
     contact = relationship("Contact", back_populates="attendances")
+
+
+class WooConfig(Base):
+    __tablename__ = "woo_config"
+
+    id = Column(Integer, primary_key=True)
+    store_url = Column(String(255), nullable=False)
+    consumer_key = Column(String(255), nullable=False)
+    consumer_secret = Column(String(255), nullable=False)
+    last_synced_at = Column(DateTime, nullable=True)
+
+
+class Product(Base):
+    __tablename__ = "products"
+
+    id = Column(Integer, primary_key=True, index=True)
+    woo_id = Column(Integer, unique=True, nullable=False)
+    name = Column(String(255), nullable=False)
+    sku = Column(String(100))
+    price = Column(Float)
+    regular_price = Column(Float)
+    sale_price = Column(Float)
+    stock_quantity = Column(Integer)
+    stock_status = Column(String(50))
+    status = Column(String(50))
+    description = Column(Text)
+    short_description = Column(Text)
+    categories = Column(Text)  # JSON string
+    image_url = Column(String(500))
+    permalink = Column(String(500))
+    synced_at = Column(DateTime, default=datetime.utcnow)
+
+    order_items = relationship("OrderItem", back_populates="product")
+
+
+class Order(Base):
+    __tablename__ = "orders"
+
+    id = Column(Integer, primary_key=True, index=True)
+    woo_id = Column(Integer, unique=True, nullable=False)
+    contact_id = Column(Integer, ForeignKey("contacts.id"), nullable=True)
+    status = Column(String(50))
+    currency = Column(String(10))
+    total = Column(Float)
+    subtotal = Column(Float)
+    total_tax = Column(Float)
+    shipping_total = Column(Float)
+    discount_total = Column(Float)
+    payment_method = Column(String(100))
+    payment_method_title = Column(String(100))
+    billing_email = Column(String(255))
+    billing_first_name = Column(String(100))
+    billing_last_name = Column(String(100))
+    billing_address = Column(Text)
+    shipping_address = Column(Text)
+    customer_note = Column(Text)
+    ordered_at = Column(DateTime)
+    synced_at = Column(DateTime, default=datetime.utcnow)
+
+    contact = relationship("Contact", back_populates="orders")
+    items = relationship("OrderItem", back_populates="order", cascade="all, delete-orphan")
+
+
+class OrderItem(Base):
+    __tablename__ = "order_items"
+
+    id = Column(Integer, primary_key=True, index=True)
+    order_id = Column(Integer, ForeignKey("orders.id"), nullable=False)
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=True)
+    woo_product_id = Column(Integer)
+    name = Column(String(255), nullable=False)
+    sku = Column(String(100))
+    quantity = Column(Integer)
+    price = Column(Float)
+    total = Column(Float)
+
+    order = relationship("Order", back_populates="items")
+    product = relationship("Product", back_populates="order_items")

@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Phone, Mail, Building2, Edit2, Save, X, Plus } from 'lucide-react'
+import { ArrowLeft, Phone, Mail, Building2, Edit2, Save, X, Plus, ShoppingCart } from 'lucide-react'
+import axios from 'axios'
 import {
   fetchContact, updateContact, fetchContactActivities,
   addActivity, fetchCompanies,
@@ -239,11 +240,84 @@ export default function ContactDetail() {
         )}
       </div>
 
+      {/* Orders */}
+      <OrderHistory contactId={contactId} />
+
       {showAddActivity && (
         <Modal title="Activiteit toevoegen" onClose={() => setShowAddActivity(false)}>
           <AddActivityModal contactId={contactId} onClose={() => setShowAddActivity(false)} />
         </Modal>
       )}
+    </div>
+  )
+}
+
+const orderStatusColors: Record<string, string> = {
+  completed: 'bg-green-100 text-green-700',
+  processing: 'bg-blue-100 text-blue-700',
+  pending: 'bg-yellow-100 text-yellow-700',
+  cancelled: 'bg-red-100 text-red-600',
+  refunded: 'bg-slate-100 text-slate-500',
+  failed: 'bg-red-100 text-red-600',
+  'on-hold': 'bg-orange-100 text-orange-700',
+}
+
+const orderStatusLabels: Record<string, string> = {
+  completed: 'Voltooid',
+  processing: 'In behandeling',
+  pending: 'In afwachting',
+  cancelled: 'Geannuleerd',
+  refunded: 'Terugbetaald',
+  failed: 'Mislukt',
+  'on-hold': 'In de wacht',
+}
+
+function OrderHistory({ contactId }: { contactId: number }) {
+  const { data: orders = [] } = useQuery<any[]>({
+    queryKey: ['woo-orders', contactId],
+    queryFn: () => axios.get('/api/woocommerce/orders', { params: { contact_id: contactId } }).then((r) => r.data),
+  })
+
+  if (orders.length === 0) return null
+
+  const totalSpent = orders.filter((o) => o.status === 'completed').reduce((sum, o) => sum + (o.total ?? 0), 0)
+
+  return (
+    <div className="bg-white rounded-xl border border-slate-200">
+      <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+        <h2 className="font-semibold text-slate-900 flex items-center gap-2">
+          <ShoppingCart size={17} /> Bestellingen ({orders.length})
+        </h2>
+        <span className="text-sm text-slate-500">Totaal besteed: <strong className="text-slate-900">€{totalSpent.toFixed(2)}</strong></span>
+      </div>
+      <ul className="divide-y divide-slate-100">
+        {orders.map((order) => (
+          <li key={order.id} className="px-5 py-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="font-medium text-slate-900 text-sm">Bestelling #{order.woo_id}</span>
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${orderStatusColors[order.status] ?? 'bg-slate-100 text-slate-500'}`}>
+                    {orderStatusLabels[order.status] ?? order.status}
+                  </span>
+                </div>
+                <ul className="text-xs text-slate-500 space-y-0.5">
+                  {order.items.map((item: any, i: number) => (
+                    <li key={i}>{item.quantity}× {item.name} — €{Number(item.total).toFixed(2)}</li>
+                  ))}
+                </ul>
+                {order.ordered_at && (
+                  <p className="text-xs text-slate-400 mt-1">
+                    {new Date(order.ordered_at).toLocaleDateString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' })}
+                    {order.payment_method_title && ` · ${order.payment_method_title}`}
+                  </p>
+                )}
+              </div>
+              <span className="font-semibold text-slate-900 text-sm whitespace-nowrap">€{Number(order.total).toFixed(2)}</span>
+            </div>
+          </li>
+        ))}
+      </ul>
     </div>
   )
 }

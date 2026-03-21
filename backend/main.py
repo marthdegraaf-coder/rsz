@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from database import engine, Base
 import models  # noqa: F401 - ensures models are registered
-from routers import contacts, companies, events, tags
+from routers import contacts, companies, events, tags, woocommerce
 
 Base.metadata.create_all(bind=engine)
 
@@ -20,6 +20,7 @@ app.include_router(contacts.router, prefix="/api")
 app.include_router(companies.router, prefix="/api")
 app.include_router(events.router, prefix="/api")
 app.include_router(tags.router, prefix="/api")
+app.include_router(woocommerce.router, prefix="/api")
 
 
 @app.get("/api/stats")

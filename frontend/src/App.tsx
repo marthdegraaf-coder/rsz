@@ -9,6 +9,8 @@ import CompanyDetail from './pages/CompanyDetail'
 import Events from './pages/Events'
 import EventDetail from './pages/EventDetail'
 import Tags from './pages/Tags'
+import WooCommercePage from './pages/WooCommerce'
+import Products from './pages/Products'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -30,6 +32,8 @@ export default function App() {
             <Route path="events" element={<Events />} />
             <Route path="events/:id" element={<EventDetail />} />
             <Route path="tags" element={<Tags />} />
+            <Route path="products" element={<Products />} />
+            <Route path="woocommerce" element={<WooCommercePage />} />
           </Route>
         </Routes>
       </BrowserRouter>
