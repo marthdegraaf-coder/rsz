@@ -9,6 +9,7 @@ const navItems = [
   { to: '/products', icon: Package, label: 'Producten' },
   { to: '/tags', icon: Tag, label: 'Tags' },
   { to: '/woocommerce', icon: Settings, label: 'WooCommerce' },
+  { to: '/afas', icon: Settings, label: 'AFAS' },
 ]
 
 export default function Layout() {

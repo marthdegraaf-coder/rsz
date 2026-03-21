@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from database import engine, Base
 import models  # noqa: F401 - ensures models are registered
-from routers import contacts, companies, events, tags, woocommerce
+from routers import contacts, companies, events, tags, woocommerce, afas
 
 Base.metadata.create_all(bind=engine)
 
@@ -11,6 +11,8 @@ Base.metadata.create_all(bind=engine)
 with engine.connect() as _conn:
     for _stmt in [
         "ALTER TABLE events ADD COLUMN woo_product_id INTEGER",
+        "ALTER TABLE contacts ADD COLUMN afas_id VARCHAR(50)",
+        "ALTER TABLE companies ADD COLUMN afas_id VARCHAR(50)",
     ]:
         try:
             _conn.execute(text(_stmt))
@@ -33,6 +35,7 @@ app.include_router(companies.router, prefix="/api")
 app.include_router(events.router, prefix="/api")
 app.include_router(tags.router, prefix="/api")
 app.include_router(woocommerce.router, prefix="/api")
+app.include_router(afas.router, prefix="/api")
 
 
 @app.get("/api/stats")

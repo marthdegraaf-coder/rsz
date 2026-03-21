@@ -52,6 +52,7 @@ class Company(Base):
     address = Column(Text)
     industry = Column(String(100))
     notes = Column(Text)
+    afas_id = Column(String(50), nullable=True, unique=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -68,6 +69,7 @@ class Contact(Base):
     phone = Column(String(50))
     job_title = Column(String(100))
     status = Column(Enum(ContactStatus), default=ContactStatus.lead)
+    afas_id = Column(String(50), nullable=True, unique=True)
     company_id = Column(Integer, ForeignKey("companies.id"), nullable=True)
     notes = Column(Text)
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -149,6 +151,17 @@ class WooConfig(Base):
     store_url = Column(String(255), nullable=False)
     consumer_key = Column(String(255), nullable=False)
     consumer_secret = Column(String(255), nullable=False)
+    last_synced_at = Column(DateTime, nullable=True)
+
+
+class AfasConfig(Base):
+    __tablename__ = "afas_config"
+
+    id = Column(Integer, primary_key=True)
+    environment_id = Column(String(20), nullable=False)   # bijv. "12345"
+    api_token = Column(Text, nullable=False)              # AFAS App Connector token
+    contacts_connector = Column(String(100), default="KP_Contactpersoon")
+    companies_connector = Column(String(100), nullable=True)
     last_synced_at = Column(DateTime, nullable=True)
 
 

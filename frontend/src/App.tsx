@@ -11,6 +11,7 @@ import EventDetail from './pages/EventDetail'
 import Tags from './pages/Tags'
 import WooCommercePage from './pages/WooCommerce'
 import Products from './pages/Products'
+import AfasPage from './pages/Afas'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -34,6 +35,7 @@ export default function App() {
             <Route path="tags" element={<Tags />} />
             <Route path="products" element={<Products />} />
             <Route path="woocommerce" element={<WooCommercePage />} />
+            <Route path="afas" element={<AfasPage />} />
           </Route>
         </Routes>
       </BrowserRouter>
