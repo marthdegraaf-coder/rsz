@@ -40,15 +40,24 @@ def get_woo_config(db: Session) -> models.WooConfig:
 
 def woo_get(config: models.WooConfig, endpoint: str, params: dict = None) -> list:
     """Fetch all pages from a WooCommerce endpoint."""
+    # Ensure HTTPS so Basic auth headers are not stripped on redirect
     base = config.store_url.rstrip("/")
-    auth = (config.consumer_key, config.consumer_secret)
+    if base.startswith("http://"):
+        base = "https://" + base[7:]
+
     results = []
     page = 1
     while True:
-        p = {"per_page": 100, "page": page, **(params or {})}
+        # Use query-param auth (works on HTTP and HTTPS, survives redirects)
+        p = {
+            "consumer_key": config.consumer_key,
+            "consumer_secret": config.consumer_secret,
+            "per_page": 100,
+            "page": page,
+            **(params or {}),
+        }
         resp = http.get(
             f"{base}/wp-json/wc/v3/{endpoint}",
-            auth=auth,
             params=p,
             timeout=30,
             allow_redirects=True,
@@ -82,10 +91,12 @@ def get_config(db: Session = Depends(get_db)):
 def save_config(data: WooConfigIn, db: Session = Depends(get_db)):
     # Test connection first
     base = data.store_url.rstrip("/")
+    if base.startswith("http://"):
+        base = "https://" + base[7:]
     try:
         resp = http.get(
             f"{base}/wp-json/wc/v3/system_status",
-            auth=(data.consumer_key, data.consumer_secret),
+            params={"consumer_key": data.consumer_key, "consumer_secret": data.consumer_secret},
             timeout=10,
         )
         if resp.status_code == 401:
@@ -96,12 +107,17 @@ def save_config(data: WooConfigIn, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Kan winkel-URL niet bereiken")
 
     config = db.query(models.WooConfig).first()
+    normalized_url = base  # already converted to https
     if config:
-        config.store_url = data.store_url
+        config.store_url = normalized_url
         config.consumer_key = data.consumer_key
         config.consumer_secret = data.consumer_secret
     else:
-        config = models.WooConfig(**data.model_dump())
+        config = models.WooConfig(
+            store_url=normalized_url,
+            consumer_key=data.consumer_key,
+            consumer_secret=data.consumer_secret,
+        )
         db.add(config)
     db.commit()
     db.refresh(config)
