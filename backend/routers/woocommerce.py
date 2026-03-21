@@ -194,22 +194,34 @@ def get_config(db: Session = Depends(get_db)):
 
 @router.post("/config", response_model=WooConfigOut)
 def save_config(data: WooConfigIn, db: Session = Depends(get_db)):
-    # Test connection first
+    # Test connection: try products endpoint (read-only, always available)
     base = data.store_url.rstrip("/")
     if base.startswith("http://"):
         base = "https://" + base[7:]
     try:
         resp = http.get(
-            f"{base}/wp-json/wc/v3/system_status",
-            params={"consumer_key": data.consumer_key, "consumer_secret": data.consumer_secret},
-            timeout=10,
+            f"{base}/wp-json/wc/v3/products",
+            params={
+                "consumer_key": data.consumer_key,
+                "consumer_secret": data.consumer_secret,
+                "per_page": 1,
+            },
+            timeout=15,
+            allow_redirects=True,
         )
         if resp.status_code == 401:
-            raise HTTPException(status_code=400, detail="Ongeldige API-sleutels")
-        if resp.status_code not in (200, 404):
-            raise HTTPException(status_code=400, detail=f"Kan geen verbinding maken: HTTP {resp.status_code}")
+            raise HTTPException(status_code=400, detail="Ongeldige API-sleutels (401 Unauthorized)")
+        if resp.status_code == 403:
+            raise HTTPException(status_code=400, detail="Geen toegang — controleer de API-sleutelrechten (403 Forbidden)")
+        if resp.status_code not in (200, 204):
+            raise HTTPException(
+                status_code=400,
+                detail=f"WooCommerce antwoordde met HTTP {resp.status_code}: {resp.text[:200]}",
+            )
+    except http.exceptions.SSLError:
+        raise HTTPException(status_code=400, detail="SSL-fout bij verbinden met de winkel")
     except http.exceptions.ConnectionError:
-        raise HTTPException(status_code=400, detail="Kan winkel-URL niet bereiken")
+        raise HTTPException(status_code=400, detail="Kan winkel-URL niet bereiken — controleer de URL")
 
     config = db.query(models.WooConfig).first()
     normalized_url = base  # already converted to https
