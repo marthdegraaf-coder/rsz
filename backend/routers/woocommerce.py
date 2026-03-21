@@ -19,20 +19,24 @@ _DUTCH_MONTHS = {
 }
 
 _EVENT_CATEGORY_KW = {
-    'evenement', 'evenementen', 'event', 'events',
-    'workshop', 'workshops', 'cursus', 'cursussen',
-    'training', 'trainingen', 'seminar', 'webinar', 'opleiding',
     # RSZ-specifieke rijschool categorieën
-    'driften', 'ijsdriften', 'pitlane', 'vrij rijden', 'vrij-rijden',
-    'racecursus', 'racecursus-upgrade', 'trainingsdagen',
-    'race-tactics', 'race-&-tactics',
-    'open pitlane', 'open-pitlane',
+    'driften', 'ijsdriften',
+    'pitlane', 'open pitlane', 'open-pitlane',
+    'vrij rijden', 'vrij-rijden',
+    'racecursus', 'racecursus-upgrade',
+    'trainingsdag', 'trainingsdagen',
+    'race & tactics', 'race-&-tactics', 'race-tactics',
+    'dnrt testdag', 'open pitlane / dnrt testdag',
 }
 
 # Product names (lowercase, partial match) that are always treated as events
 _EVENT_NAME_KW = {
-    'driften', 'ijsdriften', 'pitlane', 'vrij rijden',
-    'racecursus', 'trainingsdagen', 'race & tactics',
+    'driften', 'ijsdriften',
+    'pitlane',
+    'vrij rijden',
+    'racecursus',
+    'trainingsdag', 'trainingsdagen',
+    'race & tactics',
 }
 
 _DATE_KEYS = {'datum', 'date', 'startdatum', 'start datum', 'event datum', 'start_date', 'event_date'}
