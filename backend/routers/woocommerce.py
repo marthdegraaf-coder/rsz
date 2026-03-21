@@ -46,10 +46,24 @@ def woo_get(config: models.WooConfig, endpoint: str, params: dict = None) -> lis
     page = 1
     while True:
         p = {"per_page": 100, "page": page, **(params or {})}
-        resp = http.get(f"{base}/wp-json/wc/v3/{endpoint}", auth=auth, params=p, timeout=30)
-        if resp.status_code != 200:
-            raise HTTPException(status_code=502, detail=f"WooCommerce API fout: {resp.text[:200]}")
-        data = resp.json()
+        resp = http.get(
+            f"{base}/wp-json/wc/v3/{endpoint}",
+            auth=auth,
+            params=p,
+            timeout=30,
+            allow_redirects=True,
+        )
+        if resp.status_code == 204 or not resp.text.strip():
+            break
+        if resp.status_code not in (200, 201):
+            raise HTTPException(
+                status_code=502,
+                detail=f"WooCommerce API fout ({resp.status_code}): {resp.text[:300]}",
+            )
+        try:
+            data = resp.json()
+        except Exception:
+            break
         if not data:
             break
         results.extend(data)
